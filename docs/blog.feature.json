@@ -1,0 +1,146 @@
+{
+  "feature": "blog",
+  "type": "marketing_blog",
+  "visibility": "public",
+
+  "roles": {
+    "public": {
+      "authenticated": false
+    },
+    "customer": {
+      "authenticated": true
+    },
+    "employee": {
+      "authenticated": true
+    },
+    "admin": {
+      "authenticated": true
+    },
+    "superadmin": {
+      "authenticated": true
+    }
+  },
+
+  "posts": {
+    "view": {
+      "allowed_roles": ["public", "customer", "employee", "admin", "superadmin"],
+      "conditions": {
+        "is_published": true
+      }
+    },
+    "create": {
+      "allowed_roles": ["employee", "admin", "superadmin"],
+      "author_must_be_self": true
+    },
+    "edit": {
+      "allowed_roles": ["employee", "admin", "superadmin"],
+      "author_must_be_self": false
+    },
+    "delete": {
+      "allowed_roles": ["admin", "superadmin"]
+    },
+    "status": {
+      "allowed_values": ["draft", "published"],
+      "publish_action": {
+        "sets_published_at": true
+      }
+    }
+  },
+
+  "comments": {
+    "view": {
+      "allowed_roles": ["public", "customer", "employee", "admin", "superadmin"],
+      "conditions": {
+        "status": "approved"
+      }
+    },
+    "create": {
+      "allowed_roles": ["customer"],
+      "default_status": "pending"
+    },
+    "edit": {
+      "allowed_roles": ["customer"],
+      "own_comment_only": true
+    },
+    "delete": {
+      "allowed_roles": ["customer"],
+      "own_comment_only": true
+    },
+    "moderation": {
+      "allowed_roles": ["admin", "superadmin"],
+      "allowed_status_changes": ["approved", "rejected", "spam"]
+    }
+  },
+
+  "likes": {
+    "posts": {
+      "create": {
+        "allowed_roles": ["customer"],
+        "unique_per_user": true
+      },
+      "delete": {
+        "allowed_roles": ["customer"],
+        "own_like_only": true
+      }
+    },
+    "comments": {
+      "create": {
+        "allowed_roles": ["customer"],
+        "unique_per_user": true
+      },
+      "delete": {
+        "allowed_roles": ["customer"],
+        "own_like_only": true
+      }
+    }
+  },
+
+  "analytics": {
+    "views": {
+      "track": true,
+      "allowed_roles_to_create": ["public", "customer", "employee", "admin", "superadmin"]
+    },
+    "view_access": {
+      "allowed_roles": ["employee", "admin", "superadmin"]
+    },
+    "metrics": ["view_count", "like_count", "comment_count"]
+  },
+
+  "categories": {
+    "view": {
+      "allowed_roles": ["public", "customer", "employee", "admin", "superadmin"]
+    },
+    "manage": {
+      "allowed_roles": ["employee", "admin", "superadmin"]
+    }
+  },
+
+  "tags": {
+    "view": {
+      "allowed_roles": ["public", "customer", "employee", "admin", "superadmin"]
+    },
+    "manage": {
+      "allowed_roles": ["employee", "admin", "superadmin"]
+    }
+  },
+
+  "editor": {
+    "type": "rich_text",
+    "library": "tiptap",
+    "storage_format": "html",
+    "target_users": "non_technical"
+  },
+
+  "security": {
+    "enforced_by": "database_rls",
+    "frontend_checks": "secondary_only",
+    "role_source": "profiles_table"
+  },
+
+  "rendering": {
+    "framework": "react",
+    "router": "react_router",
+    "rendering_mode": "csr",
+    "ssr_planned": false
+  }
+}

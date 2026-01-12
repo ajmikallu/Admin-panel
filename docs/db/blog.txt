@@ -1,0 +1,148 @@
+Posts
+View: SQL allows anyone to SELECT posts only when is_published = TRUE unless they are staff, which can see all posts. This matches "view" with allowed_roles including "public" and condition is_published: true, plus implicit staff override.
+​
+
+Create: Only employee, admin, superadmin can INSERT and must be the author_id themselves, which matches "create" with allowed_roles staff and author_must_be_self: true.
+​
+
+Edit: Any staff can UPDATE any post; JSON has "edit" with staff roles and author_must_be_self: false, which aligns.
+​
+
+Delete: Only admin and superadmin can DELETE, exactly as in "delete" allowed roles.
+​
+
+Status: Your SQL uses is_published + published_at trigger, which corresponds to "status" having "draft" | "published" and sets_published_at: true. 
+​
+
+Comments
+View: Policy only exposes comments with status = 'approved', which matches "view" conditions { status: "approved" } for all roles.
+​
+
+Create: Only customers can INSERT and must be the user_id, equivalent to "create" allowed only for "customer" with default pending.
+​
+
+Edit/Delete own: Policies allow customers to UPDATE/DELETE only where auth.uid() = user_id, i.e. "own_comment_only": true.
+​
+
+Moderation: Admin/superadmin can UPDATE any comment to change status, matching "moderation" allowed for ["admin","superadmin"] with allowed status values.
+​
+
+Likes
+Post likes: Only customers can INSERT/DELETE their likes; unique per (post_id, user_id) via DB UNIQUE constraint, the same as "unique_per_user": true and "own_like_only": true.
+​
+
+Comment likes: Identical pattern for comments, matching the JSON "likes.comments" rules.
+​
+
+Analytics / Views
+Insert: Policy "Anyone can create views" (WITH CHECK (true)) matches "track": true and allowed_roles_to_create including public.
+​
+
+View analytics: Only staff can SELECT from post_views, same as "view_access" allowed for "employee","admin","superadmin".
+​
+
+Categories & Tags
+View: SELECT allowed for everyone, just like "view" for all roles.
+​
+
+Manage: FOR ALL limited to staff roles, the same as "manage" for ["employee","admin","superadmin"].
+​
+
+Security / Editor / Rendering
+security.enforced_by = "database_rls" matches your use of Postgres RLS with get_user_role() that reads profiles.role.
+​
+
+role_source = "profiles_table" is exactly your get_user_role(user_uuid) implementation.
+​
+
+Editor and rendering fields describe frontend choices (Tiptap, React CSR) that sit on top of this SQL; they do not contradict anything in your schema.
+​
+
+ORDER TO IMPLEMENT
+
+🟢 Step 1 — Types
+
+Create:
+
+blog.types.ts
+
+
+Do this FIRST. Everything depends on it.
+
+🟢 Step 2 — Supabase API layer
+
+Create:
+
+getPublishedPosts()
+
+getPostBySlug(slug)
+
+createPost()
+
+updatePost()
+
+👉 No UI yet
+
+🟢 Step 3 — Public blog pages
+
+/blog
+
+/blog/:slug
+
+Include:
+
+View tracking (insert into post_views)
+
+SEO meta tags
+
+Skeleton loading
+
+🟢 Step 4 — Editor (TipTap)
+
+HTML output
+
+Save as draft
+
+Publish toggle
+
+🟢 Step 5 — Comments & Likes
+
+Customer-only comment form
+
+Like button with optimistic UI
+
+RLS testing
+
+5️⃣ Things You MUST Do (non-negotiable)
+
+✅ Sanitize HTML before saving
+
+✅ Never trust frontend role checks
+
+✅ Let DB triggers update counts
+
+✅ Paginate blog list
+
+❌ Do not fetch unpublished posts publicly
+
+6️⃣ What I Recommend We Do NEXT
+
+If you agree, next I will give you copy-paste ready code for:
+
+✅ TipTap editor (HTML output)
+
+✅ posts.api.ts
+
+✅ Blog list page
+
+✅ Blog details page with views + likes
+
+✅ Role guard hook for staff routes
+
+👉 Just reply with:
+
+“Start with TipTap editor”
+or
+“Start with Supabase API layer”
+
+We’ll build this cleanly, step by step, without missing anything.
