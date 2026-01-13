@@ -1,5 +1,5 @@
 // ============================================
-// FILE: src/pages/public/BlogList.tsx (Updated)
+// FILE: src/pages/blog/BlogList.tsx
 // ============================================
 import { useEffect, useState } from "react";
 import {
@@ -126,9 +126,13 @@ export default function BlogList() {
                       {featuredPost.title}
                     </h3>
                     <p className="featured-post-body">
-                      {parsePostContent(featuredPost)
-                        ?.blocks?.find((b) => b.type === "paragraph")
-                        ?.data?.text?.slice(0, 150) + "..."}
+                      {(() => {
+                        const text = parsePostContent(
+                          featuredPost,
+                        )?.blocks?.find((b) => b.type === "paragraph")?.data
+                          ?.text;
+                        return text ? `${text.slice(0, 150)}...` : "";
+                      })()}
                     </p>
                   </div>
                   <div className="author-container mt-10">

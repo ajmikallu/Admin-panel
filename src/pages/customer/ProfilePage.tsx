@@ -1,6 +1,7 @@
 // src/features/profile/pages/ProfilePage.tsx
 import { useState, useEffect } from "react";
 import { Mail, Phone, MapPin, Calendar, Palette, Edit2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import {
   getProfile,
@@ -52,13 +53,24 @@ export const ProfilePage = () => {
   const handleSaveProfile = async (updates: UpdateProfileData) => {
     if (!profile) return;
 
+    const previousProfile = profile;
+
     try {
       await withLoader(async () => {
         const updatedProfile = await updateProfile(profile.id, updates);
         setProfile(updatedProfile);
       }, "Updating profile...");
+
+      toast.success("Profile updated successfully");
     } catch (err) {
-      console.error("Failed to update profile:", err);
+      // Revert optimistic UI changes
+      setProfile(previousProfile);
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update profile";
+      toast.error("Failed to update profile", {
+        description: errorMessage,
+      });
     }
   };
 

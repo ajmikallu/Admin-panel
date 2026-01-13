@@ -24,7 +24,7 @@ export const BlogDetailsSkeleton = () => {
           </div>
 
           {/* Metadata Skeleton */}
-          <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-gray-200 pb-6">
+          <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-gray-200 pb-6 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
               <div className="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
@@ -81,7 +81,7 @@ export const BlogDetailsSkeleton = () => {
           </div>
 
           {/* Tags Skeleton */}
-          <div className="mt-12 border-t border-gray-200 pt-8">
+          <div className="mt-12 border-t border-gray-200 pt-8 dark:border-gray-700">
             <div className="mb-3 h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
             <div className="flex flex-wrap gap-2">
               <div className="h-8 w-20 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
@@ -92,7 +92,7 @@ export const BlogDetailsSkeleton = () => {
           </div>
 
           {/* Engagement Stats Skeleton */}
-          <div className="mt-12 flex items-center justify-between border-t border-gray-200 pt-8">
+          <div className="mt-12 flex items-center justify-between border-t border-gray-200 pt-8 dark:border-gray-700">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />

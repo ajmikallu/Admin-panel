@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback } from "react";
+import React, { createContext, useState, useCallback, useRef } from "react";
 import type { ReactNode } from "react";
 
 // Types
@@ -23,6 +23,7 @@ export const LoaderContext = createContext<LoaderContextType | undefined>(
 export const LoaderProvider: React.FC<LoaderProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Loading...");
+  const loadCountRef = useRef(0);
 
   const showLoader = useCallback((message = "Loading...") => {
     setLoadingMessage(message);
@@ -34,18 +35,27 @@ export const LoaderProvider: React.FC<LoaderProviderProps> = ({ children }) => {
     setLoadingMessage("Loading...");
   }, []);
 
-  // Wrapper function for async operations
+  // Wrapper function for async operations with counter-based tracking
   const withLoader = useCallback(
     async <T,>(
       asyncFn: () => Promise<T>,
       message = "Loading...",
     ): Promise<T> => {
-      try {
+      // Increment counter and show loader only on transition from 0 to 1
+      loadCountRef.current += 1;
+      if (loadCountRef.current === 1) {
         showLoader(message);
+      }
+
+      try {
         const result = await asyncFn();
         return result;
       } finally {
-        hideLoader();
+        // Decrement counter and hide loader only when counter reaches 0
+        loadCountRef.current -= 1;
+        if (loadCountRef.current === 0) {
+          hideLoader();
+        }
       }
     },
     [showLoader, hideLoader],
