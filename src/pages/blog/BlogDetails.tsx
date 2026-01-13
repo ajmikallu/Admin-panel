@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTrackView } from "@/hooks/useTrackView";
 import { EditorRenderer } from "@/components/blog/EditorRenderer";
 import type { OutputData } from "@editorjs/editorjs";
+import { useLoader } from "@/hooks/useLoader";
+import { BlogDetailsSkeleton } from "@/components/skeleton";
 
 export default function BlogDetails() {
   const { user } = useAuth();
@@ -13,27 +15,34 @@ export default function BlogDetails() {
   const [post, setPost] = useState<PostView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { withLoader } = useLoader();
 
   useEffect(() => {
     if (!slug) return;
 
     async function load() {
-      const { data, error } = await getPostBySlug(slug as string);
+      setLoading(true);
+      setError(null);
 
-      if (error) {
-        setError("Post not found");
+      try {
+        await withLoader(async () => {
+          const { data, error } = await getPostBySlug(slug as string);
+
+          if (error) {
+            throw new Error("Post not found");
+          }
+
+          setPost(data);
+        }, "Loading post...");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Post not found");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      setPost(data);
-      setLoading(false);
-      // fire & forget view tracking
-      // trackPostView(data.id, user?.id);
     }
 
     load();
-  }, [slug, user]);
+  }, [slug, withLoader]);
 
   // Track view with deduplication (tracks after 3 seconds)
   useTrackView({
@@ -52,50 +61,63 @@ export default function BlogDetails() {
     }
   };
 
+  // Loading state - Show skeleton
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-          <p className="text-gray-600">Loading post...</p>
-        </div>
-      </div>
-    );
+    return <BlogDetailsSkeleton />;
   }
 
-  if (error) {
+  // Error state - Show user-friendly error
+  if (error || !post) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="rounded-lg bg-white p-8 text-center shadow-lg">
-          <svg
-            className="mx-auto mb-4 h-16 w-16 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">
-            Post Not Found
-          </h2>
-          <p className="mb-6 text-gray-600">{error}</p>
-          <Link
-            to="/blogs"
-            className="inline-block rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
-          >
-            Back to Blogs
-          </Link>
+      <main className="bg-gray-50 py-12 dark:bg-gray-900">
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-lg dark:bg-gray-800">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+              <svg
+                className="h-10 w-10 text-red-600 dark:text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
+              Post Not Found
+            </h2>
+            <p className="mb-6 text-gray-600 dark:text-gray-400">
+              {error ||
+                "The post you're looking for doesn't exist or has been removed."}
+            </p>
+            <Link
+              to="/blogs"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              Back to Blogs
+            </Link>
+          </div>
         </div>
-      </div>
+      </main>
     );
   }
-
-  if (!post) return null;
 
   const editorData = parseContent(post.content);
 
@@ -155,7 +177,7 @@ export default function BlogDetails() {
           </h1>
 
           {/* Metadata */}
-          <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-gray-200 pb-6 text-sm text-gray-600 dark:text-gray-400">
+          <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-gray-200 pb-6 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
             {post.published_at && (
               <time
                 dateTime={post.published_at}
@@ -227,33 +249,37 @@ export default function BlogDetails() {
 
           {/* Excerpt */}
           {post.excerpt && (
-            <div className="text-grey-100 mb-8 rounded-lg bg-gray-200 p-6 dark:bg-gray-700 dark:text-white">
-              <p className="text-lg leading-relaxed">{post.excerpt}</p>
+            <div className="mb-8 rounded-lg bg-gray-200 p-6 dark:bg-gray-700 dark:text-white">
+              <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-200">
+                {post.excerpt}
+              </p>
             </div>
           )}
 
           {/* Editor.js Content */}
           {editorData ? (
-            <div className="editor-content prose prose-lg max-w-none">
+            <div className="editor-content prose prose-lg dark:prose-invert max-w-none">
               <EditorRenderer data={editorData} />
             </div>
           ) : (
-            <div className="rounded-lg bg-red-50 p-4 text-center">
-              <p className="text-red-600">Failed to load content</p>
+            <div className="rounded-lg bg-red-50 p-6 text-center dark:bg-red-900/20">
+              <p className="text-red-600 dark:text-red-400">
+                Failed to load content
+              </p>
             </div>
           )}
 
           {/* Meta Keywords (SEO) */}
           {post.meta_keywords && post.meta_keywords.length > 0 && (
-            <div className="mt-12 border-t border-gray-200 pt-8">
-              <h3 className="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase">
+            <div className="mt-12 border-t border-gray-200 pt-8 dark:border-gray-700">
+              <h3 className="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
                 Tags
               </h3>
               <div className="flex flex-wrap gap-2">
                 {post.meta_keywords.map((keyword, index) => (
                   <span
                     key={index}
-                    className="rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-700 hover:bg-gray-200"
+                    className="rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   >
                     #{keyword}
                   </span>
@@ -263,9 +289,9 @@ export default function BlogDetails() {
           )}
 
           {/* Engagement Stats */}
-          <div className="mt-12 flex items-center justify-between border-t border-gray-200 pt-8">
+          <div className="mt-12 flex items-center justify-between border-t border-gray-200 pt-8 dark:border-gray-700">
             <div className="flex items-center gap-6">
-              <button className="flex items-center gap-2 text-gray-600 transition-colors hover:text-red-600">
+              <button className="flex items-center gap-2 text-gray-600 transition-colors hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400">
                 <svg
                   className="h-6 w-6"
                   fill="none"
@@ -281,7 +307,7 @@ export default function BlogDetails() {
                 </svg>
                 <span className="font-medium">{post.like_count || 0}</span>
               </button>
-              <button className="flex items-center gap-2 text-gray-600 transition-colors hover:text-blue-600">
+              <button className="flex items-center gap-2 text-gray-600 transition-colors hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">
                 <svg
                   className="h-6 w-6"
                   fill="none"
@@ -300,7 +326,7 @@ export default function BlogDetails() {
             </div>
 
             {/* Share Button */}
-            <button className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200">
+            <button className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -328,13 +354,21 @@ export default function BlogDetails() {
           color: #374151;
         }
 
+        .dark .editor-content {
+          color: #d1d5db;
+        }
+
         .editor-content h1 {
           font-size: 2.25rem;
           font-weight: 800;
           margin-top: 2.5rem;
           margin-bottom: 1.25rem;
-          // color: #111827;
+          color: #111827;
           line-height: 1.2;
+        }
+
+        .dark .editor-content h1 {
+          color: #f9fafb;
         }
 
         .editor-content h2 {
@@ -342,8 +376,12 @@ export default function BlogDetails() {
           font-weight: 700;
           margin-top: 2rem;
           margin-bottom: 1rem;
-          // color: #111827;
+          color: #111827;
           line-height: 1.3;
+        }
+
+        .dark .editor-content h2 {
+          color: #f3f4f6;
         }
 
         .editor-content h3 {
@@ -351,8 +389,12 @@ export default function BlogDetails() {
           font-weight: 600;
           margin-top: 1.5rem;
           margin-bottom: 0.75rem;
-          // color: #111827;
+          color: #111827;
           line-height: 1.4;
+        }
+
+        .dark .editor-content h3 {
+          color: #e5e7eb;
         }
 
         .editor-content h4 {
@@ -360,7 +402,11 @@ export default function BlogDetails() {
           font-weight: 600;
           margin-top: 1.25rem;
           margin-bottom: 0.5rem;
-          // color: #1f2937;
+          color: #1f2937;
+        }
+
+        .dark .editor-content h4 {
+          color: #d1d5db;
         }
 
         .editor-content p {
@@ -393,7 +439,12 @@ export default function BlogDetails() {
           border-radius: 0.375rem;
           font-family: 'Monaco', 'Courier New', monospace;
           font-size: 0.9em;
-          // color: #ef4444;
+          color: #ef4444;
+        }
+
+        .dark .editor-content code {
+          background-color: #374151;
+          color: #fca5a5;
         }
 
         .editor-content pre {
@@ -420,19 +471,33 @@ export default function BlogDetails() {
           padding-bottom: 0.5rem;
           margin: 2rem 0;
           font-style: italic;
-          // color: #6b7280;
+          color: #6b7280;
           background-color: #f9fafb;
           border-radius: 0 0.5rem 0.5rem 0;
         }
 
+        .dark .editor-content blockquote {
+          color: #9ca3af;
+          background-color: #1f2937;
+          border-left-color: #60a5fa;
+        }
+
         .editor-content a {
-          // color: #3b82f6;
+          color: #3b82f6;
           text-decoration: underline;
           transition: color 0.2s;
         }
 
         .editor-content a:hover {
           color: #2563eb;
+        }
+
+        .dark .editor-content a {
+          color: #60a5fa;
+        }
+
+        .dark .editor-content a:hover {
+          color: #3b82f6;
         }
 
         .editor-content table {
@@ -451,14 +516,28 @@ export default function BlogDetails() {
           text-align: left;
         }
 
+        .dark .editor-content th,
+        .dark .editor-content td {
+          border-color: #374151;
+        }
+
         .editor-content th {
           background-color: #f3f4f6;
           font-weight: 600;
           color: #1f2937;
         }
 
+        .dark .editor-content th {
+          background-color: #374151;
+          color: #f9fafb;
+        }
+
         .editor-content tr:hover {
           background-color: #f9fafb;
+        }
+
+        .dark .editor-content tr:hover {
+          background-color: #1f2937;
         }
 
         .editor-content hr {
@@ -467,9 +546,17 @@ export default function BlogDetails() {
           margin: 3rem 0;
         }
 
+        .dark .editor-content hr {
+          border-top-color: #374151;
+        }
+
         .editor-content strong {
           font-weight: 700;
           color: #111827;
+        }
+
+        .dark .editor-content strong {
+          color: #f9fafb;
         }
 
         .editor-content em {

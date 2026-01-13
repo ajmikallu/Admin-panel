@@ -3,28 +3,21 @@ import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import CustomerHeader from "@/components/CustomerHeader";
 import Sidebar from "@/components/Sidebar";
-import { Spinner } from "@/components/ui/spinner";
 
 export const CustomerLayout = () => {
-  const { profile, loading, role } = useProfile();
+  const { profile, role } = useProfile();
   const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (loading || !profile) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner className="size-8 text-blue-500" />
-      </div>
-    );
-  }
-
-  if (["admin", "superAdmin"].includes(profile.role)) {
+  // Redirect admin/superAdmin to admin panel
+  if (profile?.role && ["admin", "superAdmin"].includes(profile.role)) {
     return <Navigate to="/admin" state={{ from: location }} replace />;
   }
 
-  if (!["customer", "employee"].includes(profile.role)) {
+  // Redirect unauthorized roles to home
+  if (profile?.role && !["customer", "employee"].includes(profile.role)) {
     return <Navigate to="/" replace />;
   }
 
@@ -37,7 +30,9 @@ export const CustomerLayout = () => {
       <div className="relative flex h-[calc(100vh-56px)]">
         {/* Sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 border-r bg-gray-100 transition-transform duration-300 md:static md:translate-x-0 dark:bg-gray-900 ${collapsed ? "md:w-16" : "md:w-64"} ${mobileOpen ? "translate-x-0" : "-translate-x-full"} w-64`}
+          className={`fixed inset-y-0 left-0 z-40 border-r bg-gray-100 transition-transform duration-300 md:static md:translate-x-0 dark:border-gray-700 dark:bg-gray-900 ${
+            collapsed ? "md:w-16" : "md:w-64"
+          } ${mobileOpen ? "translate-x-0" : "-translate-x-full"} w-64`}
         >
           <Sidebar
             role={role}

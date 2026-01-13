@@ -9,3 +9,4 @@ SEO Optimization - You want instant server-side rendering
 add related post in blogdetail page
 add blog category list page
 add author section unser blog details page
+add global loading
