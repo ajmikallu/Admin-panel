@@ -1,21 +1,34 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { getPostBySlug } from "@/features/blog/api";
 import type { PostView } from "@/types/blog.types";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { useTrackView } from "@/hooks/useTrackView";
 import { EditorRenderer } from "@/components/blog/EditorRenderer";
 import type { OutputData } from "@editorjs/editorjs";
 import { useLoader } from "@/hooks/useLoader";
 import { BlogDetailsSkeleton } from "@/components/skeleton";
 
+import {
+  likePost,
+  unlikePost,
+  hasLikedPost,
+} from "@/features/blog/api/likes.api";
+import { toast } from "sonner";
+
 export default function BlogDetails() {
   const { user } = useAuth();
+  const { permissions } = useProfile();
+  const navigate = useNavigate();
   const { slug } = useParams();
   const [post, setPost] = useState<PostView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
   const { withLoader } = useLoader();
+  const [isCheckingLike, setIsCheckingLike] = useState(true);
 
   useEffect(() => {
     if (!slug) return;
@@ -44,6 +57,34 @@ export default function BlogDetails() {
     load();
   }, [slug, withLoader]);
 
+  // Check if user has already liked the post
+  useEffect(() => {
+    if (!user?.id || !post) {
+      setIsLiked(false);
+      return;
+    }
+
+    async function checkLike() {
+      try {
+        setIsCheckingLike(true);
+        const { data, error } = await hasLikedPost(post!.id, user!.id);
+        if (error) {
+          console.error("Error checking like status:", error);
+          setIsLiked(false);
+          return;
+        }
+        setIsLiked(!!data);
+      } catch (err) {
+        console.error("Failed to check like status:", err);
+        setIsLiked(false);
+      } finally {
+        setIsCheckingLike(false);
+      }
+    }
+
+    checkLike();
+  }, [user?.id, post?.id]);
+
   // Track view with deduplication (tracks after 3 seconds)
   useTrackView({
     postId: post?.id || "",
@@ -58,6 +99,74 @@ export default function BlogDetails() {
     } catch (error) {
       console.error("Failed to parse content:", error);
       return null;
+    }
+  };
+
+  // Handle like/unlike
+  const handleLike = async () => {
+    // Not authenticated - redirect to login
+    if (!user) {
+      toast.error("Sign in to like posts", {
+        description: "Please log in to your account",
+      });
+      navigate("/login");
+      return;
+    }
+
+    // Not a customer - cannot like
+    if (!permissions.canLike) {
+      toast.error("Cannot like posts", {
+        description: "Only customers can like blog posts",
+      });
+      return;
+    }
+
+    if (!post?.id) return;
+
+    const previousLiked = isLiked;
+    const previousLikeCount = post.like_count || 0;
+
+    try {
+      setLikeLoading(true);
+
+      if (isLiked) {
+        // Unlike
+        const { error } = await unlikePost(post.id);
+        if (error) throw error;
+        setIsLiked(false);
+        setPost({ ...post, like_count: Math.max(0, previousLikeCount - 1) });
+        toast.success("Post unliked");
+      } else {
+        // Like
+        const { error } = await likePost(post.id);
+        if (error) throw error;
+        setIsLiked(true);
+        setPost({ ...post, like_count: previousLikeCount + 1 });
+        toast.success("Post liked!");
+      }
+    } catch (err) {
+      // Revert optimistic update
+      setIsLiked(previousLiked);
+      setPost({ ...post, like_count: previousLikeCount });
+
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to like post";
+
+      // Handle RLS policy error for non-customers
+      if (
+        errorMessage.includes("policy") ||
+        errorMessage.includes("permission")
+      ) {
+        toast.error("Cannot like post", {
+          description: "Only customers can like blog posts",
+        });
+      } else {
+        toast.error("Failed to like post", {
+          description: errorMessage,
+        });
+      }
+    } finally {
+      setLikeLoading(false);
     }
   };
 
@@ -291,10 +400,29 @@ export default function BlogDetails() {
           {/* Engagement Stats */}
           <div className="mt-12 flex items-center justify-between border-t border-gray-200 pt-8 dark:border-gray-700">
             <div className="flex items-center gap-6">
-              <button className="flex items-center gap-2 text-gray-600 transition-colors hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400">
+              <button
+                onClick={handleLike}
+                disabled={likeLoading || isCheckingLike}
+                className={`flex items-center gap-2 transition-colors ${
+                  isCheckingLike ? "cursor-wait opacity-50" : ""
+                } ${
+                  isLiked
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-gray-600 dark:text-gray-400"
+                } ${
+                  !permissions.canLike
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:text-red-600 dark:hover:text-red-400"
+                } ${likeLoading ? "opacity-75" : ""}`}
+                title={
+                  !permissions.canLike ? "Only customers can like posts" : ""
+                }
+              >
                 <svg
-                  className="h-6 w-6"
-                  fill="none"
+                  className={`h-6 w-6 transition-transform ${
+                    isLiked ? "fill-current" : ""
+                  } ${likeLoading ? "animate-pulse" : ""}`}
+                  fill={isLiked ? "currentColor" : "none"}
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >

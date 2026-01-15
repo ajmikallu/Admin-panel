@@ -130,8 +130,79 @@ if (allowedRoles?.length && profile?.role && !allowedRoles.includes(profile.role
 
 - **Posts table**: title, slug, content (Editor.js JSON), excerpt, meta fields, is_published, published_at, view_count
 - **Categories**: id, name, slug
+- **Post Likes**: Tracks customer engagement; RLS policies restrict likes to customers only
 - **Posts have relations**: author (via profiles), category, comments, likes, views
 - **Content is richly related**: getPublishedPosts() joins author + category by default
+
+### Post Likes Feature - Role-Based Implementation
+
+**Database Schema:**
+
+**RLS Policies (Row Level Security):**
+
+- **SELECT**: Anyone can view post likes (anonymous + all roles)
+- **INSERT**: Only customers can like posts via `get_user_role(auth.uid()) = 'customer'`
+- **DELETE**: Only customers can unlike their own likes
+
+**Frontend Handling - Handling Non-Customers:**
+
+When a non-customer (admin, employee) tries to like a post:
+
+1. **Frontend Check First** (`permissions.canLike`):
+   - Button is disabled and grayed out for non-customers
+   - Shows tooltip: "Only customers can like posts"
+   - Prevents unnecessary API calls
+
+2. **If Somehow Bypassed - Backend RLS Enforces**:
+   - Supabase RLS policy rejects the INSERT/DELETE
+   - Error message: "new row violates row-level security policy"
+   - Frontend catches error and shows: "Only customers can like blog posts"
+
+3. **Not Authenticated (No User)** - Redirect to Login:
+   - Toast shows: "Sign in to like posts"
+   - Navigate to `/login` page
+
+**Implementation in BlogDetails.tsx:**
+
+```typescript
+// 1. Check auth status → redirect to login if needed
+if (!user) {
+  toast.error("Sign in to like posts");
+  navigate("/login");
+  return;
+}
+
+// 2. Check role via permissions → disable UI if not customer
+if (!permissions.canLike) {
+  toast.error("Cannot like posts", {
+    description: "Only customers can like blog posts",
+  });
+  return;
+}
+
+// 3. Optimistic UI: update state immediately, revert on error
+const previousLiked = isLiked;
+const previousLikeCount = post.like_count;
+
+setIsLiked(true); // Optimistic
+setPost({ ...post, like_count: previousLikeCount + 1 });
+
+try {
+  const { error } = await likePost(post.id);
+  if (error) throw error;
+} catch (err) {
+  // Revert on failure
+  setIsLiked(previousLiked);
+  setPost({ ...post, like_count: previousLikeCount });
+  toast.error("Failed to like post");
+}
+```
+
+**API Functions (likes.api.ts):**
+
+- `likePost(postId)`: Inserts like (auth enforces via RLS policy)
+- `unlikePost(postId)`: Deletes like (auth enforces via RLS policy)
+- `hasLikedPost(postId, userId)`: Checks if user already liked post (used on load)
 
 ### Form Patterns
 

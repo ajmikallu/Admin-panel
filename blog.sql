@@ -234,13 +234,19 @@ CREATE OR REPLACE FUNCTION update_post_like_count()
 RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    UPDATE posts SET like_count = like_count + 1 WHERE id = NEW.post_id;
+    UPDATE posts 
+    SET like_count = like_count + 1 
+    WHERE id = NEW.post_id;
+    
   ELSIF TG_OP = 'DELETE' THEN
-    UPDATE posts SET like_count = like_count - 1 WHERE id = OLD.post_id;
+    UPDATE posts 
+    SET like_count = GREATEST(like_count - 1, 0)  -- ✅ Never go below 0
+    WHERE id = OLD.post_id;
+    
   END IF;
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER trigger_post_like_count
   AFTER INSERT OR DELETE ON post_likes
@@ -706,3 +712,415 @@ EXCEPTION
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- =============================================
+-- FIX 1: Update Comment Like Count Trigger
+-- Add SECURITY DEFINER and prevent negative counts
+-- =============================================
+
+DROP FUNCTION IF EXISTS update_comment_like_count() CASCADE;
+
+CREATE OR REPLACE FUNCTION update_comment_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE comments 
+    SET like_count = like_count + 1 
+    WHERE id = NEW.comment_id;
+    
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE comments 
+    SET like_count = GREATEST(like_count - 1, 0)  -- ✅ Prevent negative counts
+    WHERE id = OLD.comment_id;
+    
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;  -- ✅ Added SECURITY DEFINER
+
+-- Recreate trigger
+CREATE TRIGGER trigger_comment_like_count
+  AFTER INSERT OR DELETE ON comment_likes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_comment_like_count();
+
+
+-- =============================================
+-- FIX 2: Update Post Comment Count Trigger
+-- Add SECURITY DEFINER and prevent negative counts
+-- =============================================
+
+DROP FUNCTION IF EXISTS update_post_comment_count() CASCADE;
+
+CREATE OR REPLACE FUNCTION update_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE posts 
+    SET comment_count = comment_count + 1 
+    WHERE id = NEW.post_id;
+    
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE posts 
+    SET comment_count = GREATEST(comment_count - 1, 0)  -- ✅ Prevent negative counts
+    WHERE id = OLD.post_id;
+    
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;  -- ✅ Added SECURITY DEFINER
+
+-- Recreate trigger
+CREATE TRIGGER trigger_post_comment_count
+  AFTER INSERT OR DELETE ON comments
+  FOR EACH ROW
+  EXECUTE FUNCTION update_post_comment_count();
+
+
+-- =============================================
+-- FIX 3: Add Database Constraints
+-- Prevent negative counts at database level
+-- =============================================
+
+-- Drop existing constraints if they exist (to avoid errors)
+DO $ 
+BEGIN
+  ALTER TABLE posts DROP CONSTRAINT IF EXISTS check_view_count_positive;
+  ALTER TABLE posts DROP CONSTRAINT IF EXISTS check_like_count_positive;
+  ALTER TABLE posts DROP CONSTRAINT IF EXISTS check_comment_count_positive;
+  ALTER TABLE comments DROP CONSTRAINT IF EXISTS check_like_count_positive;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $;
+
+-- Add constraints to posts table
+ALTER TABLE posts 
+ADD CONSTRAINT check_view_count_positive CHECK (view_count >= 0);
+
+ALTER TABLE posts 
+ADD CONSTRAINT check_like_count_positive CHECK (like_count >= 0);
+
+ALTER TABLE posts 
+ADD CONSTRAINT check_comment_count_positive CHECK (comment_count >= 0);
+
+-- Add constraints to comments table
+ALTER TABLE comments
+ADD CONSTRAINT check_like_count_positive CHECK (like_count >= 0);
+
+
+-- =============================================
+-- FIX 4: Reset All Counts to Match Reality
+-- Recalculate all engagement metrics from actual data
+-- =============================================
+
+-- Reset post like counts
+UPDATE posts p
+SET like_count = COALESCE(
+  (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id),
+  0
+);
+
+-- Reset comment like counts
+UPDATE comments c
+SET like_count = COALESCE(
+  (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id),
+  0
+);
+
+-- Reset post comment counts
+UPDATE posts p
+SET comment_count = COALESCE(
+  (SELECT COUNT(*) FROM comments WHERE post_id = p.id),
+  0
+);
+
+
+-- =============================================
+-- FIX 5: Add Performance Index
+-- Optimize hasLikedPost() queries
+-- =============================================
+
+-- Drop existing indexes if they exist
+DROP INDEX IF EXISTS idx_post_likes_user_post;
+DROP INDEX IF EXISTS idx_comment_likes_user_comment;
+
+-- Create new indexes
+CREATE INDEX idx_post_likes_user_post 
+ON post_likes(user_id, post_id);
+
+CREATE INDEX idx_comment_likes_user_comment 
+ON comment_likes(user_id, comment_id);
+
+
+-- =============================================
+-- VERIFICATION QUERIES
+-- Run these to verify everything is fixed
+-- =============================================
+
+-- 1. Check all triggers exist with SECURITY DEFINER
+SELECT 
+  t.trigger_name,
+  p.proname as function_name,
+  CASE 
+    WHEN p.prosecdef THEN 'SECURITY DEFINER'
+    ELSE 'SECURITY INVOKER'
+  END as security_type
+FROM information_schema.triggers t
+JOIN pg_proc p ON p.proname = SUBSTRING(t.action_statement FROM 'EXECUTE FUNCTION ([a-z_]+)' FOR '#')
+WHERE t.trigger_name IN (
+  'trigger_post_like_count',
+  'trigger_comment_like_count', 
+  'trigger_post_comment_count'
+)
+ORDER BY t.trigger_name;
+
+-- 2. Verify no negative counts exist
+SELECT 'posts' as table_name, COUNT(*) as negative_count
+FROM posts 
+WHERE view_count < 0 OR like_count < 0 OR comment_count < 0
+UNION ALL
+SELECT 'comments' as table_name, COUNT(*) as negative_count
+FROM comments 
+WHERE like_count < 0;
+
+-- 3. Verify counts match reality
+SELECT 
+  'Post Likes' as metric,
+  COUNT(*) as mismatches
+FROM (
+  SELECT p.id
+  FROM posts p
+  LEFT JOIN post_likes pl ON p.id = pl.post_id
+  GROUP BY p.id
+  HAVING p.like_count != COUNT(pl.id)
+) AS diff
+UNION ALL
+SELECT 
+  'Comment Likes' as metric,
+  COUNT(*) as mismatches
+FROM (
+  SELECT c.id
+  FROM comments c
+  LEFT JOIN comment_likes cl ON c.id = cl.comment_id
+  GROUP BY c.id
+  HAVING c.like_count != COUNT(cl.id)
+) AS diff
+UNION ALL
+SELECT 
+  'Post Comments' as metric,
+  COUNT(*) as mismatches
+FROM (
+  SELECT p.id
+  FROM posts p
+  LEFT JOIN comments c ON p.id = c.post_id
+  GROUP BY p.id
+  HAVING p.comment_count != COUNT(c.id)
+) AS diff;
+
+-- Expected output: All metrics should show 0 mismatches
+
+
+-- =============================================
+-- SUCCESS MESSAGE
+-- =============================================
+
+DO $$
+BEGIN
+  RAISE NOTICE '✅ All fixes applied successfully!';
+  RAISE NOTICE '';
+  RAISE NOTICE 'Changes made:';
+  RAISE NOTICE '1. Added SECURITY DEFINER to update_comment_like_count()';
+  RAISE NOTICE '2. Added SECURITY DEFINER to update_post_comment_count()';
+  RAISE NOTICE '3. Added GREATEST() to prevent negative counts';
+  RAISE NOTICE '4. Added database constraints for positive counts';
+  RAISE NOTICE '5. Reset all counts to match actual data';
+  RAISE NOTICE '6. Added performance indexes for like checks';
+  RAISE NOTICE '';
+  RAISE NOTICE 'Run the verification queries above to confirm everything works!';
+END $$;
+
+
+-- =============================================
+-- FIX 1: Update Comment Like Count Trigger
+-- Add SECURITY DEFINER and prevent negative counts
+-- =============================================
+
+DROP FUNCTION IF EXISTS update_comment_like_count() CASCADE;
+
+CREATE OR REPLACE FUNCTION update_comment_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE comments 
+    SET like_count = like_count + 1 
+    WHERE id = NEW.comment_id;
+    
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE comments 
+    SET like_count = GREATEST(like_count - 1, 0)
+    WHERE id = OLD.comment_id;
+    
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_comment_like_count
+  AFTER INSERT OR DELETE ON comment_likes
+  FOR EACH ROW
+  EXECUTE FUNCTION update_comment_like_count();
+
+
+-- =============================================
+-- FIX 2: Update Post Comment Count Trigger
+-- Add SECURITY DEFINER and prevent negative counts
+-- =============================================
+
+DROP FUNCTION IF EXISTS update_post_comment_count() CASCADE;
+
+CREATE OR REPLACE FUNCTION update_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE posts 
+    SET comment_count = comment_count + 1 
+    WHERE id = NEW.post_id;
+    
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE posts 
+    SET comment_count = GREATEST(comment_count - 1, 0)
+    WHERE id = OLD.post_id;
+    
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_post_comment_count
+  AFTER INSERT OR DELETE ON comments
+  FOR EACH ROW
+  EXECUTE FUNCTION update_post_comment_count();
+
+
+-- =============================================
+-- FIX 3: Add Database Constraints
+-- Prevent negative counts at database level
+-- =============================================
+
+ALTER TABLE posts 
+ADD CONSTRAINT check_view_count_positive CHECK (view_count >= 0);
+
+ALTER TABLE posts 
+ADD CONSTRAINT check_like_count_positive CHECK (like_count >= 0);
+
+ALTER TABLE posts 
+ADD CONSTRAINT check_comment_count_positive CHECK (comment_count >= 0);
+
+ALTER TABLE comments
+ADD CONSTRAINT check_comment_like_count_positive CHECK (like_count >= 0);
+
+
+-- =============================================
+-- FIX 4: Reset All Counts to Match Reality
+-- Recalculate all engagement metrics from actual data
+-- =============================================
+
+UPDATE posts p
+SET like_count = COALESCE(
+  (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id),
+  0
+);
+
+UPDATE comments c
+SET like_count = COALESCE(
+  (SELECT COUNT(*) FROM comment_likes WHERE comment_id = c.id),
+  0
+);
+
+UPDATE posts p
+SET comment_count = COALESCE(
+  (SELECT COUNT(*) FROM comments WHERE post_id = p.id),
+  0
+);
+
+
+-- =============================================
+-- FIX 5: Add Performance Index
+-- Optimize hasLikedPost() queries
+-- =============================================
+
+DROP INDEX IF EXISTS idx_post_likes_user_post;
+DROP INDEX IF EXISTS idx_comment_likes_user_comment;
+
+CREATE INDEX idx_post_likes_user_post 
+ON post_likes(user_id, post_id);
+
+CREATE INDEX idx_comment_likes_user_comment 
+ON comment_likes(user_id, comment_id);
+
+
+-- =============================================
+-- VERIFICATION QUERIES
+-- Run these separately to verify everything is fixed
+-- =============================================
+
+-- 1. Check all triggers exist with SECURITY DEFINER
+-- SELECT 
+--   t.trigger_name,
+--   p.proname as function_name,
+--   CASE 
+--     WHEN p.prosecdef THEN 'SECURITY DEFINER'
+--     ELSE 'SECURITY INVOKER'
+--   END as security_type
+-- FROM information_schema.triggers t
+-- JOIN pg_proc p ON p.proname = SUBSTRING(t.action_statement FROM 'EXECUTE FUNCTION ([a-z_]+)' FOR '#')
+-- WHERE t.trigger_name IN (
+--   'trigger_post_like_count',
+--   'trigger_comment_like_count', 
+--   'trigger_post_comment_count'
+-- )
+-- ORDER BY t.trigger_name;
+
+-- 2. Verify no negative counts exist
+-- SELECT 'posts' as table_name, COUNT(*) as negative_count
+-- FROM posts 
+-- WHERE view_count < 0 OR like_count < 0 OR comment_count < 0
+-- UNION ALL
+-- SELECT 'comments' as table_name, COUNT(*) as negative_count
+-- FROM comments 
+-- WHERE like_count < 0;
+
+-- 3. Verify counts match reality
+-- SELECT 
+--   'Post Likes' as metric,
+--   COUNT(*) as mismatches
+-- FROM (
+--   SELECT p.id
+--   FROM posts p
+--   LEFT JOIN post_likes pl ON p.id = pl.post_id
+--   GROUP BY p.id
+--   HAVING p.like_count != COUNT(pl.id)
+-- ) AS diff
+-- UNION ALL
+-- SELECT 
+--   'Comment Likes' as metric,
+--   COUNT(*) as mismatches
+-- FROM (
+--   SELECT c.id
+--   FROM comments c
+--   LEFT JOIN comment_likes cl ON c.id = cl.comment_id
+--   GROUP BY c.id
+--   HAVING c.like_count != COUNT(cl.id)
+-- ) AS diff
+-- UNION ALL
+-- SELECT 
+--   'Post Comments' as metric,
+--   COUNT(*) as mismatches
+-- FROM (
+--   SELECT p.id
+--   FROM posts p
+--   LEFT JOIN comments c ON p.id = c.post_id
+--   GROUP BY p.id
+--   HAVING p.comment_count != COUNT(c.id)
+-- ) AS diff;
