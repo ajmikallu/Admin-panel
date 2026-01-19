@@ -44,7 +44,10 @@ export function LikedPostsDashboard({
       setHasMore(result.hasMore);
       setTotal(result.total);
       logger.log(`Loaded ${result.data.length} liked posts`);
-      logger.log({ posts: result.data }, "Loaded liked posts");
+      logger.log(
+        { postIds: result.data.map((p) => p.post.id) },
+        "Loaded liked posts",
+      );
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch liked posts";
