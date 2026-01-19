@@ -9,13 +9,9 @@ import { EditorRenderer } from "@/components/blog/EditorRenderer";
 import type { OutputData } from "@editorjs/editorjs";
 import { useLoader } from "@/hooks/useLoader";
 import { BlogDetailsSkeleton } from "@/components/skeleton";
-
-import {
-  likePost,
-  unlikePost,
-  hasLikedPost,
-} from "@/features/blog/api/likes.api";
+import { hasLikedPost, togglePostLike } from "@/features/blog/api/likes.api";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 export default function BlogDetails() {
   const { user } = useAuth();
@@ -49,6 +45,7 @@ export default function BlogDetails() {
         }, "Loading post...");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Post not found");
+        logger.error({ error: err, slug }, "Failed to load post");
       } finally {
         setLoading(false);
       }
@@ -59,23 +56,23 @@ export default function BlogDetails() {
 
   // Check if user has already liked the post
   useEffect(() => {
-    if (!user?.id || !post) {
+    if (!user?.id || !post?.id) {
       setIsLiked(false);
+      setIsCheckingLike(false);
       return;
     }
 
     async function checkLike() {
       try {
         setIsCheckingLike(true);
-        const { data, error } = await hasLikedPost(post!.id, user!.id);
-        if (error) {
-          console.error("Error checking like status:", error);
-          setIsLiked(false);
-          return;
-        }
-        setIsLiked(!!data);
+        // hasLikedPost now returns boolean, not { data, error }
+        const liked = await hasLikedPost(post!.id, user!.id);
+        setIsLiked(liked);
       } catch (err) {
-        console.error("Failed to check like status:", err);
+        logger.error(
+          { error: err, postId: post!.id },
+          "Failed to check like status",
+        );
         setIsLiked(false);
       } finally {
         setIsCheckingLike(false);
@@ -97,12 +94,13 @@ export default function BlogDetails() {
     try {
       return JSON.parse(content);
     } catch (error) {
-      console.error("Failed to parse content:", error);
+      logger.error({ error, postId: post?.id }, "Failed to parse content");
       return null;
     }
   };
 
-  // Handle like/unlike
+  // Handle like/unlike with togglePostLike
+  // Handle like/unlike toggle
   const handleLike = async () => {
     // Not authenticated - redirect to login
     if (!user) {
@@ -123,36 +121,59 @@ export default function BlogDetails() {
 
     if (!post?.id) return;
 
+    // Store previous state for rollback on error
     const previousLiked = isLiked;
     const previousLikeCount = post.like_count || 0;
 
     try {
       setLikeLoading(true);
 
-      if (isLiked) {
-        // Unlike
-        const { error } = await unlikePost(post.id);
-        if (error) throw error;
-        setIsLiked(false);
-        setPost({ ...post, like_count: Math.max(0, previousLikeCount - 1) });
-        toast.success("Post unliked");
-      } else {
-        // Like
-        const { error } = await likePost(post.id);
-        if (error) throw error;
-        setIsLiked(true);
-        setPost({ ...post, like_count: previousLikeCount + 1 });
-        toast.success("Post liked!");
+      // Optimistic UI update (immediate feedback)
+      const newLiked = !previousLiked;
+      const newLikeCount = newLiked
+        ? previousLikeCount + 1
+        : Math.max(0, previousLikeCount - 1);
+
+      setIsLiked(newLiked);
+      setPost({ ...post, like_count: newLikeCount });
+
+      // Call API with current state (before toggle)
+      const result = await togglePostLike(post.id, previousLiked);
+
+      // Verify server state matches our optimistic update
+      if (result.isLiked !== newLiked) {
+        // Server returned different state - sync with it
+        logger.warn(
+          {
+            expected: newLiked,
+            received: result.isLiked,
+            postId: post.id,
+          },
+          "Like state mismatch - syncing with server",
+        );
+
+        setIsLiked(result.isLiked);
+        setPost({
+          ...post,
+          like_count: result.isLiked
+            ? previousLikeCount + 1
+            : Math.max(0, previousLikeCount - 1),
+        });
       }
+
+      // Show success message
+      toast.success(result.isLiked ? "Post liked!" : "Post unliked");
     } catch (err) {
-      // Revert optimistic update
+      // Rollback optimistic updates on error
       setIsLiked(previousLiked);
       setPost({ ...post, like_count: previousLikeCount });
+
+      logger.error({ error: err, postId: post.id }, "Failed to toggle like");
 
       const errorMessage =
         err instanceof Error ? err.message : "Failed to like post";
 
-      // Handle RLS policy error for non-customers
+      // Handle specific error cases
       if (
         errorMessage.includes("policy") ||
         errorMessage.includes("permission")
@@ -160,9 +181,14 @@ export default function BlogDetails() {
         toast.error("Cannot like post", {
           description: "Only customers can like blog posts",
         });
+      } else if (errorMessage.includes("not authenticated")) {
+        toast.error("Please log in", {
+          description: "You need to be logged in to like posts",
+        });
+        navigate("/login");
       } else {
-        toast.error("Failed to like post", {
-          description: errorMessage,
+        toast.error("Failed to update like", {
+          description: "Please try again",
         });
       }
     } finally {
