@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase/client";
  * Note: user_id is automatically set by RLS policy from auth.uid()
  */
 export async function likePost(postId: string) {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
   if (!userData?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -196,7 +197,8 @@ export async function getCustomerLikedPostIds() {
  * Note: RLS policy ensures user can only delete their own likes
  */
 export async function unlikePost(postId: string) {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
   if (!userData?.user?.id) {
     throw new Error("Not authenticated");
   }
