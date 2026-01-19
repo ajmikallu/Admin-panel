@@ -1059,6 +1059,29 @@ ON post_likes(user_id, post_id);
 CREATE INDEX idx_comment_likes_user_comment 
 ON comment_likes(user_id, comment_id);
 
+-- 2. Auto-set user_id from auth (security - clients cannot spoof)
+ALTER TABLE public.comments 
+ALTER COLUMN user_id 
+SET DEFAULT auth.uid();
+
+-- Customers see their own pending comments too
+CREATE POLICY "Customers can view own comments"
+ON public.comments
+FOR SELECT
+USING (
+  auth.uid() = user_id 
+  AND get_user_role(auth.uid()) = 'customer'
+);
+
+-- Staff can delete comments
+CREATE POLICY "Staff can delete comments"
+ON public.comments
+FOR DELETE
+USING (
+  get_user_role(auth.uid()) IN ('admin', 'superadmin')
+);
+
+
 
 -- =============================================
 -- VERIFICATION QUERIES
