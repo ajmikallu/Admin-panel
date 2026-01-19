@@ -135,3 +135,28 @@ export type PostView = {
     slug: string;
   } | null;
 };
+
+/**
+ * Liked post with nested structure for dashboard display
+ * Matches API response: { liked_at, post: { ... } }
+ */
+export interface LikedPostWithTimestamp {
+  liked_at: string; // ISO date string when user liked the post
+  post: {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string | null;
+    featured_image_url: string | null;
+    published_at: string | null;
+    like_count: number;
+    view_count: number;
+    reading_time: number;
+    author: {
+      full_name: string;
+      avatar_url: string | null;
+    } | null;
+  };
+}
+
+export type LikedPostsWithTimestamp = LikedPostWithTimestamp[];
