@@ -151,7 +151,7 @@ export interface LikedPostWithTimestamp {
     published_at: string | null;
     like_count: number;
     view_count: number;
-    reading_time: number | null;
+    reading_time: number;
     author: {
       full_name: string;
       avatar_url: string | null;

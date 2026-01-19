@@ -44,11 +44,12 @@ export function LikedPostsDashboard({
       setHasMore(result.hasMore);
       setTotal(result.total);
       logger.log(`Loaded ${result.data.length} liked posts`);
+      logger.log({ posts: result.data }, "Loaded liked posts");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch liked posts";
       setError(errorMessage);
-      logger.error("Error fetching liked posts:", err);
+      logger.error({ err }, "Error fetching liked posts");
       onError?.(errorMessage);
     } finally {
       setIsLoading(false);
@@ -72,7 +73,7 @@ export function LikedPostsDashboard({
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load more posts";
       setError(errorMessage);
-      logger.error("Error loading more posts:", err);
+      logger.error({ err }, "Error loading more posts");
       onError?.(errorMessage);
     } finally {
       setIsLoadingMore(false);
