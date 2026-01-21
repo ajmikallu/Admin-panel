@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useProfile } from "@/hooks/useProfile";
-import { toast } from "sonner";
 import {
   getAllCommentsAdmin,
   moderateComment,
