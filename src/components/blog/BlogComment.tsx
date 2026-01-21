@@ -54,20 +54,18 @@ export default function BlogComments({ postId }: BlogCommentsProps) {
     try {
       const data = await getApprovedComments(postId);
 
-      const mapped: Comment[] = (data || [])
-        .map((c: any) => ({
-          id: c.id,
-          post_id: c.post_id,
-          user_id: c.user_id,
-          parent_id: c.parent_id ?? null,
-          content: c.content,
-          status: c.status,
-          like_count: c.like_count,
-          created_at: c.created_at,
-          updated_at: c.updated_at,
-          profile: c.profile ?? undefined,
-        }))
-        .filter((c) => c.profile); // safety: remove broken rows
+      const mapped: Comment[] = (data || []).map((c: any) => ({
+        id: c.id,
+        post_id: c.post_id,
+        user_id: c.user_id,
+        parent_id: c.parent_id ?? null,
+        content: c.content,
+        status: c.status,
+        like_count: c.like_count,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+        profile: c.profile ?? undefined,
+      }));
 
       setComments(mapped);
     } catch (err) {
