@@ -263,6 +263,9 @@
   .author-name {
     @apply font-extrabold;
   }
+  .pointer {
+    @apply cursor-pointer;
+  }
 }
 
 /* Editor.js Styles */

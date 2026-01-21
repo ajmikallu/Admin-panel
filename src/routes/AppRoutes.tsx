@@ -19,6 +19,7 @@ import BlogList from "@/pages/admin/blog/BlogList";
 import NewBlog from "@/pages/admin/blog/NewBlog";
 import Category from "@/pages/admin/Category/Category";
 import LatestBlogs from "@/pages/blog/LatestBlogs";
+import BlogCommentModeration from "@/pages/admin/blog/BlogCommentModeration";
 
 export default function AppRoutes() {
   return (
@@ -49,6 +50,8 @@ export default function AppRoutes() {
           <Route path="blogs" element={<BlogList />} />
           <Route path="blogs/new" element={<NewBlog />} />
           <Route path="categories" element={<Category />} />
+          <Route path="blogs/comments" element={<BlogCommentModeration />} />
+
           {/* <Route path="unauthorized" element={<Unauthorized />} /> */}
         </Route>
       </Route>

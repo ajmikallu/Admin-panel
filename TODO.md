@@ -275,3 +275,42 @@ The client-side sort is necessary because .in("id", postIds) doesn't preserve th
 
 
     <!-- --------------- -->
+
+  Add pagination and use precise column selection.
+
+This admin query lacks pagination and could return unbounded results. Per coding guidelines, paginate large result sets using .range() with reasonable page sizes (e.g., 20 per request).
+
+Also, avoid using * wildcard—specify only the columns needed.
+
+-export async function getAllCommentsAdmin(status?: string) {
++export async function getAllCommentsAdmin(
++  status?: string,
++  page: number = 0,
++  pageSize: number = 20,
++) {
++  const from = page * pageSize;
++  const to = from + pageSize - 1;
++
+   let query = supabase
+     .from("comments")
+     .select(
+       `
+-      *,
++      id,
++      content,
++      status,
++      created_at,
++      updated_at,
++      post_id,
++      user_id,
++      parent_id,
+       posts!comments_post_id_fkey(id, title),
+-      profile:profiles!comments_user_id_fkey(full_name, avatar_url, role, country, phone)
++      profile:profiles!comments_user_id_fkey(full_name, avatar_url, role)
+     `,
++      { count: "exact" },
+     )
+-    .order("created_at", { ascending: false });
++    .order("created_at", { ascending: false })
++    .range(from, to);
+

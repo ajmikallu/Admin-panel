@@ -1,11 +1,10 @@
-// src/features/blog/pages/NewBlog.tsx
+// src/pages/admin/blog/NewBlog.tsx
 import { useState, useEffect, useRef } from "react";
 import { createPost } from "@/features/blog/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getCategories } from "@/features/category/Category.api";
 import { EditorComponent } from "@/components/admin/editor/EditorComponent";
-// import { EditorComponen } from "@/components/admin/editor/EditorComponen";
 import type { OutputData } from "@editorjs/editorjs";
 import { uploadPostImage } from "@/features/blog/api/posts.api";
 

@@ -10,3 +10,10 @@ export function cn(...inputs: ClassValue[]) {
 export function parsePostContent(post: PostView): OutputData {
   return JSON.parse(post.content) as OutputData;
 }
+
+export function formatCommentDate(date: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(date));
+}

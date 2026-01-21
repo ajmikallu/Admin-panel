@@ -12,7 +12,12 @@ export type SignUpFormData = {
   terms_agree: boolean;
 };
 
-export type AppRole = "superAdmin" | "admin" | "employee" | "customer";
+export type AppRole =
+  | "guest"
+  | "superAdmin"
+  | "admin"
+  | "employee"
+  | "customer";
 
 export interface UserProfile {
   id: string;
@@ -36,10 +41,11 @@ export interface UpdateProfileData {
   country?: string;
 }
 
-export type AppArea = "public" | "customer" | "admin";
+export type AppArea = "public" | "customer" | "admin" | "guest";
 // access-map.ts
 
 export const ROLE_AREA_MAP: Record<AppRole, AppArea> = {
+  guest: "guest",
   customer: "customer",
   employee: "admin",
   admin: "admin",
