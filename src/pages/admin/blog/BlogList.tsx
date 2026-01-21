@@ -1,3 +1,4 @@
+// src/pages/admin/blog/BlogList.tsx
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getAllPostsAdmin, deletePost } from "@/features/blog/api";

@@ -3,11 +3,11 @@ import { FiHome } from "react-icons/fi";
 import { FaRegUser, FaBlog } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import type { AppRole } from "./types/models";
-
+import { MessageSquare, type LucideIcon } from "lucide-react";
 export interface SidebarItem {
   label: string;
   path: Partial<Record<"customer" | "admin", string>>;
-  icon: IconType;
+  icon: IconType | LucideIcon;
   roles: AppRole[];
 }
 
@@ -38,6 +38,14 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     },
     icon: FaBlog,
     roles: ["customer", "employee", "admin", "superAdmin"],
+  },
+  {
+    label: "Blog Comments",
+    icon: MessageSquare,
+    roles: ["admin", "superAdmin"],
+    path: {
+      admin: "/admin/blogs/comments",
+    },
   },
   {
     label: "Categories",

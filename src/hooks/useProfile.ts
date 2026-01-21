@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
 import type { AppRole, UserProfile } from "@/types/models";
+import { logger } from "@/lib/logger";
 // hooks/useProfile.ts - Auto-magical
 export const useProfile = () => {
   const { user } = useAuth();
@@ -36,11 +37,12 @@ export const useProfile = () => {
    * Derived authorization helpers
    * ---------------------------------- */
 
-  const role: AppRole = profile?.role ?? "customer";
+  const role: AppRole = !user ? "guest" : (profile?.role ?? "guest");
 
   const permissions = useMemo(() => {
     return {
       role,
+      isGuest: role === "guest",
       isCustomer: role === "customer",
       isEmployee: role === "employee",
       isAdmin: role === "admin",

@@ -1124,3 +1124,8 @@ ON comment_likes(user_id, comment_id);
 --   GROUP BY p.id
 --   HAVING p.comment_count != COUNT(c.id)
 -- ) AS diff;
+
+CREATE POLICY "public_read_approved_comments"
+ON comments
+FOR SELECT
+USING (status = 'approved');

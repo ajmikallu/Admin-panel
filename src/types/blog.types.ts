@@ -64,6 +64,15 @@ export interface Comment {
   // Timestamps
   created_at: string;
   updated_at: string;
+
+  profile?: CommentAuthor; // optional because LEFT JOIN
+  replies?: Comment[]; // ✅ ADD THIS
+}
+
+export interface CommentAuthor {
+  full_name: string;
+  avatar_url: string | null;
+  role: string;
 }
 
 export interface PostLike {

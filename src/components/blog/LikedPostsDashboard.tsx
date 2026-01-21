@@ -43,11 +43,11 @@ export function LikedPostsDashboard({
       setPosts(result.data);
       setHasMore(result.hasMore);
       setTotal(result.total);
-      logger.log(`Loaded ${result.data.length} liked posts`);
-      logger.log(
-        { postIds: result.data.map((p) => p.post.id) },
-        "Loaded liked posts",
-      );
+      // logger.log(`Loaded ${result.data.length} liked posts`);
+      // logger.log(
+      //   { postIds: result.data.map((p) => p.post.id) },
+      //   "Loaded liked posts",
+      // );
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch liked posts";
@@ -169,7 +169,7 @@ export function LikedPostsDashboard({
                       loading="lazy"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600">
+                    <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600">
                       <span className="text-4xl text-gray-400 dark:text-gray-500">
                         📝
                       </span>
@@ -271,7 +271,7 @@ export function LikedPostsDashboard({
             onClick={loadMore}
             disabled={isLoadingMore}
             variant="outline"
-            className="min-w-[140px]"
+            className="min-w-35"
           >
             {isLoadingMore ? (
               <>
