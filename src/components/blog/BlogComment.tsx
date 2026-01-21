@@ -5,6 +5,7 @@ import CommentItem from "@/components/blog/comment/CommentItem";
 import CommentForm from "@/components/blog/comment/CommentForm";
 import { useProfile } from "@/hooks/useProfile";
 import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 type BlogCommentsProps = {
   postId: string;
@@ -39,7 +40,6 @@ export function buildCommentTree(comments: Comment[]) {
   return roots;
 }
 
-
 export default function BlogComments({ postId }: BlogCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +72,7 @@ export default function BlogComments({ postId }: BlogCommentsProps) {
       setComments(mapped);
     } catch (err) {
       logger.error(err, "Failed to load comments");
+      toast.error("Failed to load comments");
       setError("Failed to load comments");
       setComments([]);
     } finally {
