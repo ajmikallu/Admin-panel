@@ -242,7 +242,7 @@
     @apply text-sm font-medium text-gray-500 dark:text-gray-400;
   }
   .form-input {
-    @apply h-12 rounded-lg border-gray-600 bg-gray-300 px-3 py-3 text-base text-white placeholder:text-gray-500 focus:!border-yellow-500 focus:ring-0 dark:bg-gray-800;
+    @apply h-12 rounded-lg border-gray-600 bg-gray-300 px-3 py-3 text-base text-white placeholder:text-gray-500 focus:border-yellow-500! focus:ring-0 dark:bg-gray-800;
   }
 
   .customer-wrapper {
