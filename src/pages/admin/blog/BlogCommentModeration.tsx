@@ -25,22 +25,36 @@ export default function BlogCommentModeration() {
     "pending" | "approved" | "rejected" | "spam" | "all"
   >("pending");
 
+  useEffect(() => {
+    // Only load comments if profile is ready and user is admin/superAdmin
+    if (
+      !profileLoading &&
+      ["admin", "superAdmin"].includes(profile?.role || "")
+    ) {
+      loadComments();
+    }
+  }, [filter, profileLoading, profile?.role]);
+
   if (profileLoading) return <p>Loading...</p>;
-  if (profile?.role !== "admin") {
-    return <p>Access denied. Admin privileges required.</p>;
+  if (!["admin", "superAdmin"].includes(profile?.role || "")) {
+    return <p>Access denied. Admin or SuperAdmin privileges required.</p>;
   }
 
   async function loadComments() {
     setLoading(true);
-    const statusFilter = filter === "all" ? undefined : filter;
-    const { data, error } = await getAllCommentsAdmin(statusFilter);
-    logger.log(data);
 
-    if (error) {
-      console.error(error);
-      alert("Failed to load comments");
-    } else {
-      // Fixed mapping - matches your API response exactly
+    try {
+      const statusFilter = filter === "all" ? undefined : filter;
+      const { data, error } = await getAllCommentsAdmin(statusFilter);
+      logger.log(data);
+
+      if (error) {
+        console.error("Failed to load comments:", error);
+        alert("Failed to load comments");
+        setComments([]); // clear previous comments on error
+        return;
+      }
+
       const mapped: CommentType[] =
         (data || []).map((c: any) => ({
           id: c.id,
@@ -49,14 +63,18 @@ export default function BlogCommentModeration() {
           created_at: c.created_at,
           parent_id: c.parent_id,
           like_count: c.like_count,
-          posts: c.posts || { id: "", title: "" }, // ✅ posts is OBJECT
-          profile: c.profile || {}, // ✅ profile (not users)
+          posts: c.posts || { id: "", title: "" },
+          profile: c.profile || {},
         })) || [];
 
       setComments(mapped);
+    } catch (err) {
+      console.error("Unexpected error loading comments:", err);
+      alert("Failed to load comments due to unexpected error");
+      setComments([]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   async function handleModerate(
@@ -77,10 +95,6 @@ export default function BlogCommentModeration() {
       prev.map((c) => (c.id === commentId ? { ...c, status } : c)),
     );
   }
-
-  useEffect(() => {
-    loadComments();
-  }, [filter]);
 
   if (loading) return <p>Loading comments...</p>;
   //   logger.log(comments);
