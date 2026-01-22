@@ -233,6 +233,25 @@ src/
 - ✅ Pagination for blog lists
 - ✅ Search and filtering capabilities
 
+## Documentation
+
+### API Documentation
+
+Comprehensive API documentation is available in [`docs/API.md`](docs/API.md). The documentation includes:
+
+- Complete endpoint reference for all API functions
+- Authentication and authorization details
+- Request/response examples
+- Error handling guidelines
+- Data models and type definitions
+- Best practices for client-side usage
+
+**Quick Links:**
+
+- [API Documentation](docs/API.md) - Complete API reference
+- [Database Schema](#database-schema) - Database structure (below)
+- [Architecture Overview](#project-architecture) - System architecture
+
 ## Development Workflow
 
 ### Code Organization
