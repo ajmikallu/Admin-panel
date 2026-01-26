@@ -143,8 +143,17 @@ export function CommentTable({
                       onClick={() => onModerate(comment.id, "spam")}
                       disabled={moderatingId === comment.id || disabled}
                     >
-                      <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
-                      Spam
+                      {moderatingId === comment.id ? (
+                        <>
+                          <Spinner className="mr-1.5 h-3.5 w-3.5" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                          Spam
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>

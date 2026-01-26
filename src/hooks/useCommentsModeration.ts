@@ -9,6 +9,7 @@ import type {
   CommentStatus,
   CommentAPIResponse,
 } from "@/types/comment.types";
+import { toast } from "sonner";
 
 // Helper function to map API response to CommentType
 const mapCommentData = (data: CommentAPIResponse[]): CommentType[] => {
@@ -19,7 +20,7 @@ const mapCommentData = (data: CommentAPIResponse[]): CommentType[] => {
     created_at: c.created_at,
     parent_id: c.parent_id,
     like_count: c.like_count,
-    posts: c.posts || { id: "", title: "" },
+    posts: c.posts ?? null,
     profile: c.profile || {},
   }));
 };
@@ -55,7 +56,7 @@ export function useCommentsModeration(
 
         if (error) {
           console.error("Failed to load comments:", error);
-          alert("Failed to load comments. Please try again.");
+          toast.error("Failed to load comments. Please try again.");
           setComments([]);
           return;
         }
@@ -64,7 +65,7 @@ export function useCommentsModeration(
         setComments(mapped);
       } catch (err) {
         console.error("Unexpected error loading comments:", err);
-        alert("An unexpected error occurred while loading comments.");
+        toast.error("An unexpected error occurred while loading comments.");
         setComments([]);
       } finally {
         if (isInitialLoad) {
@@ -103,11 +104,12 @@ export function useCommentsModeration(
         const { error } = await moderateComment(commentId, status);
         if (error) {
           console.error("Error moderating comment:", error);
-          alert("Failed to update comment status. Please try again.");
+          toast.error("Failed to update comment status. Please try again.");
           return;
         }
 
         await fetchComments(filter, false);
+        toast.success(`Comment marked as ${status}`);
       } finally {
         setModeratingId(null);
       }

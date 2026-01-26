@@ -105,8 +105,17 @@ export function CommentCard({
               onClick={() => onModerate(comment.id, "rejected")}
               disabled={moderatingId === comment.id || disabled}
             >
-              <XCircle className="mr-2 h-4 w-4" />
-              Reject
+              {moderatingId === comment.id ? (
+                <>
+                  <Spinner className="mr-2 h-4 w-4" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
+                </>
+              )}
             </Button>
           )}
           {comment.status !== "spam" && (
