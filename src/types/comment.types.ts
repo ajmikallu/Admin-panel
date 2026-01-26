@@ -1,7 +1,7 @@
 export type CommentType = {
   id: string;
   content: string;
-  status: string;
+  status: CommentStatus;
   created_at: string;
   parent_id?: string | null;
   like_count: number;

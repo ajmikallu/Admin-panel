@@ -1,6 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { User, Calendar, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import {
+  User,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 import type { CommentType, CommentStatus } from "@/types/comment.types";
 import { getStatusBadge } from "./getStatusBadge";
 
@@ -116,8 +122,17 @@ export function CommentTable({
                       onClick={() => onModerate(comment.id, "rejected")}
                       disabled={moderatingId === comment.id || disabled}
                     >
-                      <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                      Reject
+                      {moderatingId === comment.id ? (
+                        <>
+                          <Spinner className="mr-1.5 h-3.5 w-3.5" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                          Reject
+                        </>
+                      )}
                     </Button>
                   )}
                   {comment.status !== "spam" && (
@@ -141,4 +156,3 @@ export function CommentTable({
     </div>
   );
 }
-

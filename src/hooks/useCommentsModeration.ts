@@ -107,18 +107,12 @@ export function useCommentsModeration(
           return;
         }
 
-        // 🎯 CRITICAL: REFETCH after success to sync with server
-        const statusParam = filter === "all" ? undefined : filter;
-        const { data, error: fetchError } =
-          await getAllCommentsAdmin(statusParam);
-        if (!fetchError && data) {
-          setComments(mapCommentData(data));
-        }
+        await fetchComments(filter, false);
       } finally {
         setModeratingId(null);
       }
     },
-    [filter], // ✅ Add filter dependency
+    [filter, fetchComments], // ✅ Add filter dependency
   );
 
   return {
