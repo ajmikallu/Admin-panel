@@ -143,6 +143,7 @@ export const CategoryModal = ({
               label="Parent Category"
               placeholder="No parent (top level)"
               control={control}
+              disabled={isLoading}
               options={categories
                 .filter((c) => c.id !== category?.id)
                 .map((c) => ({
