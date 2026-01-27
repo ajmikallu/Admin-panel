@@ -108,8 +108,9 @@ export function useCommentsModeration(
           return;
         }
 
-        await fetchComments(filter, false);
         toast.success(`Comment marked as ${status}`);
+        // Refetch runs independently; its own error handling shows a toast if needed
+        await fetchComments(filter, false);
       } finally {
         setModeratingId(null);
       }

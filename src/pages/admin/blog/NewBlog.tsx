@@ -7,6 +7,7 @@ import { getCategories } from "@/features/category/Category.api";
 import { EditorComponent } from "@/components/admin/editor/EditorComponent";
 import type { OutputData } from "@editorjs/editorjs";
 import { uploadPostImage } from "@/features/blog/api/posts.api";
+import { toast } from "sonner";
 
 export default function NewBlog() {
   const navigate = useNavigate();
@@ -79,14 +80,14 @@ export default function NewBlog() {
       "image/gif",
     ];
     if (!validTypes.includes(file.type)) {
-      alert("Please select a valid image file (JPG, PNG, WebP, or GIF)");
+      toast.error("Please select a valid image file (JPG, PNG, WebP, or GIF)");
       return;
     }
 
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
-      alert("Image size must be less than 5MB");
+      toast.error("Image size must be less than 5MB");
       return;
     }
 
@@ -112,7 +113,7 @@ export default function NewBlog() {
       return url;
     } catch (err) {
       console.error(err);
-      alert("Image upload failed");
+      toast.error("Image upload failed");
       return null;
     } finally {
       setIsUploading(false);
@@ -133,17 +134,17 @@ export default function NewBlog() {
   async function savePost(isPublished: boolean) {
     // Validation
     if (!user) {
-      alert("You must be logged in to create a blog");
+      toast.error("You must be logged in to create a blog");
       return;
     }
 
     if (!title.trim()) {
-      alert("Title is required");
+      toast.error("Title is required");
       return;
     }
 
     if (!editorData || !editorData.blocks || editorData.blocks.length === 0) {
-      alert("Content is required");
+      toast.error("Content is required");
       return;
     }
 
@@ -155,7 +156,7 @@ export default function NewBlog() {
       if (featuredImageFile && !featuredImageUrl) {
         uploadedImageUrl = await uploadFeaturedImage();
         if (!uploadedImageUrl) {
-          alert("Failed to upload image. Please try again.");
+          toast.error("Failed to upload image. Please try again.");
           setIsLoading(false);
           return;
         }
@@ -199,12 +200,12 @@ export default function NewBlog() {
 
       if (error) {
         console.error(error);
-        alert(`Failed to ${isPublished ? "publish" : "save"} post`);
+        toast.error(`Failed to ${isPublished ? "publish" : "save"} post`);
         return;
       }
 
       // Success feedback
-      alert(
+      toast.success(
         isPublished
           ? "Post published successfully!"
           : "Draft saved successfully!",
@@ -218,7 +219,7 @@ export default function NewBlog() {
       }
     } catch (error) {
       console.error("Error creating post:", error);
-      alert("An error occurred while saving the post");
+      toast.error("An error occurred while saving the post");
     } finally {
       setIsLoading(false);
     }
