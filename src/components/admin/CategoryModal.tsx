@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import type { Category, UpdateCategoryData } from "@/types/models";
 import InputField from "@/components/form/InputField";
@@ -24,7 +25,6 @@ export const CategoryModal = ({
   onSave,
 }: CategoryModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const isEditMode = Boolean(category);
 
@@ -61,19 +61,18 @@ export const CategoryModal = ({
         parent_id: null,
       });
     }
-
-    setError(null);
   }, [isOpen, category, reset]);
 
   const onSubmit = async (data: UpdateCategoryData) => {
     setIsLoading(true);
-    setError(null);
 
     try {
       await onSave(data);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save category");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to save category";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -101,12 +100,6 @@ export const CategoryModal = ({
 
         {/* Body */}
         <div className="px-6 py-4">
-          {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-              {error}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <InputField
               label="Name"
