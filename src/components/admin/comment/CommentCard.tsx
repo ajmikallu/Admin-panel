@@ -122,12 +122,20 @@ export function CommentCard({
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800 sm:flex-initial dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/20"
               onClick={() => onModerate(comment.id, "spam")}
               disabled={moderatingId === comment.id || disabled}
             >
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Spam
+              {moderatingId === comment.id ? (
+                <>
+                  <Spinner className="mr-2 h-4 w-4" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Spam
+                </>
+              )}
             </Button>
           )}
         </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Plus, Edit2, Trash2, Eye, Calendar } from "lucide-react";
 import type { Post } from "@/types/blog.types";
+import { toast } from "sonner";
 
 const BlogList = () => {
   const [blogs, setBlogs] = useState<Post[]>([]);
@@ -24,13 +25,13 @@ const BlogList = () => {
       const { data, error } = await getAllPostsAdmin();
       if (error) {
         console.error("Error fetching blogs:", error);
-        alert("Failed to load blogs. Please try again.");
+        toast.error("Failed to load blogs. Please try again.");
       } else {
         setBlogs(data || []);
       }
     } catch (error) {
       console.error("Unexpected error fetching blogs:", error);
-      alert("An unexpected error occurred while loading blogs.");
+      toast.error("An unexpected error occurred while loading blogs.");
     } finally {
       setLoading(false);
     }
@@ -45,14 +46,14 @@ const BlogList = () => {
       const { error } = await deletePost(blogId);
       if (error) {
         console.error("Error deleting blog:", error);
-        alert("Failed to delete blog. Please try again.");
+        toast.error("Failed to delete blog. Please try again.");
       } else {
         // Remove the deleted blog from the list
         setBlogs((prev) => prev.filter((blog) => blog.id !== blogId));
       }
     } catch (error) {
       console.error("Unexpected error deleting blog:", error);
-      alert("An unexpected error occurred while deleting the blog.");
+      toast.error("An unexpected error occurred while deleting the blog.");
     } finally {
       setDeletingId(null);
     }
