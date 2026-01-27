@@ -1,7 +1,5 @@
 // src/features/blog/api/comments.api.ts
 import { supabase } from "@/lib/supabase/client";
-import { logger } from "@/lib/logger";
-
 /**
  * Public: get approved comments for a post
  */
